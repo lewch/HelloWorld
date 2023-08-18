@@ -1,4 +1,7 @@
 version: 2.1
+orbs:
+  python: circleci/python@2.0.3
+  heroku: circleci/heroku@1.2.6
 
 jobs:
   hello-job:
@@ -8,7 +11,39 @@ jobs:
       - checkout # check out the code in the project directory
       - run: echo "hello world" # run the `echo` command
 
+    build_and_test: # this can be any name you choose
+      executor: python/default # use the default executor defined within the orb
+      steps:
+        - checkout # checkout source code
+        - python/install-packages:
+            pkg-manager: pip
+        - run:
+            name: Run tests
+            command: python -m pytest
+        - persist_to_workspace:
+            root: ~/project
+            paths:
+              - .
+    # ...previous job(s)...
+    deploy: # this can be any name you choose
+      executor: heroku/default # use the default executor defined within the orb
+      steps:
+        - attach_workspace:
+            at: ~/project
+        - heroku/deploy-via-git:
+            force: true # force push when pushing to the heroku remote, see: https://devcenter.heroku.com/articles/git
+
+
 workflows:
-  my-workflow:
+#  my-workflow:
+#    jobs:
+#      - hello-job
+  build-test-deploy: # this can be any name you choose
     jobs:
-      - hello-job
+      - build-and-test
+      - deploy:
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: main
